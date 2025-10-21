@@ -99,7 +99,7 @@
 
 - **Клиентский проект:** `D:\Cursor Projects\Granit DB analize sales`
 - **Технический промпт:** `NEW_PROJECT_PROMPT.md` (не в репозитории)
-- **База данных:** Firebird на `85.114.224.45/3055:DK_GEORGIA`
+- **База данных:** Firebird сервер (параметры в .env)
 
 ---
 

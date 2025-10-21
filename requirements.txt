@@ -1,0 +1,30 @@
+# ==================== WEB FRAMEWORK ====================
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+pydantic==2.5.0
+pydantic-settings==2.1.0
+
+# ==================== DATABASE ====================
+fdb==2.0.2
+
+# ==================== SECURITY ====================
+python-jose[cryptography]==3.3.0
+passlib[bcrypt]==1.7.4
+python-multipart==0.0.6
+
+# ==================== RATE LIMITING ====================
+slowapi==0.1.9
+
+# ==================== UTILITIES ====================
+python-dotenv==1.0.0
+pandas==2.1.4
+
+# ==================== DEVELOPMENT ====================
+pytest==7.4.3
+httpx==0.25.2
+black==23.9.1
+flake8==6.1.0
+
+# ==================== PRODUCTION ====================
+gunicorn==21.2.0
+
