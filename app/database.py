@@ -1,21 +1,28 @@
 """
-Firebird database connection pool и операции с БД
+Firebird database connection и операции с БД (с кешированием)
 """
 
 import fdb
 import logging
+import hashlib
+import json
 from contextlib import contextmanager
 from typing import Optional, List, Dict, Any, Tuple
-from datetime import datetime
+from datetime import datetime, date, time, timedelta
+import decimal
 
 from app.config import settings
 
 logger = logging.getLogger(__name__)
 
+# Простой in-memory кеш для запросов
+_query_cache: Dict[str, Dict[str, Any]] = {}
+CACHE_TTL_SECONDS = 300  # 5 минут по умолчанию
 
-class FirebirdConnectionPool:
+
+class FirebirdDatabase:
     """
-    Connection pool для Firebird БД с автоматическим управлением соединениями.
+    Firebird БД с подключением по требованию и кешированием.
     """
     
     def __init__(
@@ -25,11 +32,11 @@ class FirebirdConnectionPool:
         database: str,
         user: str,
         password: str,
-        max_connections: int = 10,
-        connection_timeout: int = 10
+        connection_timeout: int = 10,
+        cache_ttl: int = 300
     ):
         """
-        Инициализация пула соединений.
+        Инициализация параметров подключения.
         
         Args:
             host: Хост Firebird сервера
@@ -37,20 +44,50 @@ class FirebirdConnectionPool:
             database: Имя БД или alias
             user: Пользователь БД
             password: Пароль пользователя
-            max_connections: Максимальное количество соединений (не используется в простой реализации)
             connection_timeout: Таймаут подключения в секундах
+            cache_ttl: Время жизни кеша в секундах (по умолчанию 5 минут)
         """
         self.host = host
         self.port = port
         self.database = database
         self.user = user
         self.password = password
-        self.max_connections = max_connections
         self.connection_timeout = connection_timeout
+        self.cache_ttl = cache_ttl
         
         self.dsn = f"{host}/{port}:{database}"
-        logger.info(f"Initialized Firebird connection pool: {self.dsn}")
-        logger.info(f"Max connections: {max_connections}, Timeout: {connection_timeout}s")
+        logger.info(f"Initialized Firebird database: {self.dsn}")
+        logger.info(f"Cache TTL: {cache_ttl}s")
+    
+    def _get_cache_key(self, query: str, params: Optional[Tuple] = None) -> str:
+        """Генерация ключа кеша для запроса"""
+        cache_data = {
+            "query": query,
+            "params": params if params else []
+        }
+        cache_string = json.dumps(cache_data, sort_keys=True)
+        return hashlib.md5(cache_string.encode()).hexdigest()
+    
+    def _get_from_cache(self, cache_key: str) -> Optional[List[Dict[str, Any]]]:
+        """Получить данные из кеша если актуальны"""
+        if cache_key in _query_cache:
+            cached = _query_cache[cache_key]
+            if datetime.now() < cached['expires_at']:
+                logger.debug(f"Cache HIT: {cache_key}")
+                return cached['data']
+            else:
+                # Кеш устарел, удаляем
+                logger.debug(f"Cache EXPIRED: {cache_key}")
+                del _query_cache[cache_key]
+        return None
+    
+    def _save_to_cache(self, cache_key: str, data: List[Dict[str, Any]]):
+        """Сохранить данные в кеш"""
+        _query_cache[cache_key] = {
+            'data': data,
+            'expires_at': datetime.now() + timedelta(seconds=self.cache_ttl)
+        }
+        logger.debug(f"Cache SAVED: {cache_key} ({len(data)} rows)")
     
     @contextmanager
     def get_connection(self):
@@ -102,28 +139,30 @@ class FirebirdConnectionPool:
     def execute_query(
         self,
         query: str,
-        params: Optional[Tuple] = None
+        params: Optional[Tuple] = None,
+        use_cache: bool = True
     ) -> List[Dict[str, Any]]:
         """
-        Выполнение SELECT запроса и возврат результатов в виде списка словарей.
+        Выполнение SELECT запроса с кешированием.
         
         Args:
             query: SQL запрос
             params: Параметры запроса (tuple для позиционных параметров)
+            use_cache: Использовать ли кеш (по умолчанию True)
             
         Returns:
             List[Dict[str, Any]]: Список строк в виде словарей {column_name: value}
             
         Raises:
             fdb.Error: Ошибки выполнения запроса
-            
-        Example:
-            results = db_pool.execute_query(
-                "SELECT ID, NAME FROM STORGRP WHERE ID = ?",
-                (1,)
-            )
-            # [{"ID": 1, "NAME": "Магазин 1"}]
         """
+        # Проверяем кеш
+        cache_key = self._get_cache_key(query, params) if use_cache else None
+        if cache_key:
+            cached_data = self._get_from_cache(cache_key)
+            if cached_data is not None:
+                return cached_data
+        
         start_time = datetime.now()
         
         with self.get_connection() as conn:
@@ -151,16 +190,28 @@ class FirebirdConnectionPool:
                         row_dict = {}
                         for i, col_name in enumerate(columns):
                             value = row[i]
-                            # Преобразовать datetime в ISO формат для JSON
+                            # Преобразовать типы данных для JSON сериализации
                             if isinstance(value, datetime):
                                 value = value.isoformat()
+                            elif isinstance(value, date):
+                                value = value.isoformat()
+                            elif isinstance(value, time):
+                                value = value.isoformat()
+                            elif isinstance(value, decimal.Decimal):
+                                value = float(value)
+                            elif isinstance(value, bytes):
+                                value = value.decode('utf-8', errors='replace')
                             row_dict[col_name] = value
                         results.append(row_dict)
                     
                     elapsed = (datetime.now() - start_time).total_seconds()
                     logger.info(
-                        f"Query executed successfully: {len(results)} rows in {elapsed:.3f}s"
+                        f"Query executed: {len(results)} rows in {elapsed:.3f}s"
                     )
+                    
+                    # Сохраняем в кеш
+                    if cache_key:
+                        self._save_to_cache(cache_key, results)
                     
                     return results
                 else:
@@ -258,47 +309,55 @@ class FirebirdConnectionPool:
         return schema
 
 
-# Глобальный экземпляр пула соединений
-db_pool: Optional[FirebirdConnectionPool] = None
+# Глобальный экземпляр БД
+db: Optional[FirebirdDatabase] = None
 
 
-def initialize_db_pool() -> FirebirdConnectionPool:
+def initialize_database() -> FirebirdDatabase:
     """
-    Инициализация глобального пула соединений из настроек.
+    Инициализация глобального экземпляра БД из настроек.
     
     Returns:
-        FirebirdConnectionPool: Инициализированный пул
+        FirebirdDatabase: Инициализированный экземпляр
     """
-    global db_pool
+    global db
     
-    db_pool = FirebirdConnectionPool(
+    db = FirebirdDatabase(
         host=settings.db_host,
         port=settings.db_port,
         database=settings.db_name,
         user=settings.db_user,
         password=settings.db_password,
-        max_connections=settings.db_max_connections,
-        connection_timeout=settings.db_connection_timeout
+        connection_timeout=settings.db_connection_timeout,
+        cache_ttl=getattr(settings, 'cache_ttl', 300)
     )
     
-    logger.info("Database pool initialized successfully")
-    return db_pool
+    logger.info("Database initialized successfully")
+    return db
 
 
-def get_db_pool() -> FirebirdConnectionPool:
+def get_database() -> FirebirdDatabase:
     """
-    Dependency для FastAPI - получение экземпляра пула БД.
+    Dependency для FastAPI - получение экземпляра БД.
     
     Returns:
-        FirebirdConnectionPool: Глобальный пул соединений
+        FirebirdDatabase: Глобальный экземпляр БД
         
     Raises:
-        RuntimeError: Если пул не инициализирован
+        RuntimeError: Если БД не инициализирована
     """
-    if db_pool is None:
+    if db is None:
         raise RuntimeError(
-            "Database pool not initialized. "
-            "Call initialize_db_pool() on application startup."
+            "Database not initialized. "
+            "Call initialize_database() on application startup."
         )
-    return db_pool
+    return db
+
+
+def clear_cache():
+    """Очистить весь кеш запросов"""
+    global _query_cache
+    count = len(_query_cache)
+    _query_cache.clear()
+    logger.info(f"Cache cleared: {count} entries removed")
 

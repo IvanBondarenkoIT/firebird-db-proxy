@@ -20,6 +20,9 @@ class Settings(BaseSettings):
     db_connection_timeout: int = Field(default=10, description="Connection timeout in seconds")
     db_query_timeout: int = Field(default=30, description="Query timeout in seconds")
     
+    # ==================== CACHE ====================
+    cache_ttl: int = Field(default=300, description="Cache TTL in seconds (default 5 min)")
+    
     # ==================== SECURITY ====================
     api_tokens: str = Field(
         default="default-token-change-me",

@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 """
 Тест подключения к Firebird БД
 
@@ -9,11 +10,17 @@
 import sys
 import os
 
+# Настройка кодировки для Windows консоли
+if sys.platform == 'win32':
+    import codecs
+    sys.stdout = codecs.getwriter('utf-8')(sys.stdout.buffer, 'strict')
+    sys.stderr = codecs.getwriter('utf-8')(sys.stderr.buffer, 'strict')
+
 # Добавить родительскую директорию в путь для импорта app модулей
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from app.config import settings
-from app.database import FirebirdConnectionPool
+from app.database import FirebirdDatabase
 
 
 def test_connection():
@@ -35,30 +42,29 @@ def test_connection():
     print("-"*60 + "\n")
     
     try:
-        pool = FirebirdConnectionPool(
+        db = FirebirdDatabase(
             host=settings.db_host,
             port=settings.db_port,
             database=settings.db_name,
             user=settings.db_user,
             password=settings.db_password,
-            max_connections=settings.db_max_connections,
             connection_timeout=settings.db_connection_timeout
         )
         
-        print("✓ Пул создан успешно\n")
+        print("✓ Database инициализирована успешно\n")
         
         print("-"*60)
         print("Тест подключения...")
         print("-"*60 + "\n")
         
-        if pool.test_connection():
+        if db.test_connection():
             print("✓ Подключение успешно!\n")
             
             print("-"*60)
             print("Получение списка таблиц...")
             print("-"*60 + "\n")
             
-            tables = pool.get_tables()
+            tables = db.get_tables()
             print(f"✓ Найдено таблиц: {len(tables)}\n")
             
             if tables:

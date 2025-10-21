@@ -8,7 +8,8 @@ from datetime import datetime
 from fastapi import APIRouter, Depends
 from fastapi.responses import JSONResponse
 
-from app.database import get_db_pool, FirebirdConnectionPool
+from app.auth import verify_token
+from app.database import get_database, FirebirdDatabase, clear_cache
 from app.models import HealthResponse
 from app.config import settings
 
@@ -30,7 +31,7 @@ startup_time = datetime.now()
     description="Проверка работоспособности API и подключения к БД. Не требует аутентификации."
 )
 async def health_check(
-    db: FirebirdConnectionPool = Depends(get_db_pool)
+    db: FirebirdDatabase = Depends(get_database)
 ) -> HealthResponse:
     """
     Health check endpoint для мониторинга.
@@ -80,11 +81,28 @@ async def health_check(
     include_in_schema=False
 )
 async def root():
-    """Корневой endpoint - редирект на документацию"""
+    """Корневой endpoint - информация об API"""
     return {
         "message": "Firebird DB Proxy API",
         "version": settings.app_version,
         "docs": "/docs",
         "health": "/api/health"
+    }
+
+
+@router.post(
+    "/cache/clear",
+    summary="Очистить кеш",
+    description="Очищает весь кеш запросов. Требует Bearer Token аутентификацию."
+)
+async def clear_query_cache(
+    token: str = Depends(verify_token)
+):
+    """Очистить кеш всех запросов"""
+    clear_cache()
+    return {
+        "success": True,
+        "message": "Cache cleared successfully",
+        "timestamp": datetime.now().isoformat()
     }
 

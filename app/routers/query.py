@@ -10,7 +10,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, Request
 import fdb
 
 from app.auth import verify_token
-from app.database import get_db_pool, FirebirdConnectionPool
+from app.database import get_database, FirebirdDatabase
 from app.models import QueryRequest, QueryResponse, ErrorResponse
 from app.validators import validate_sql
 
@@ -20,8 +20,6 @@ router = APIRouter(
     prefix="/api",
     tags=["query"]
 )
-
-# Rate limiter будет применен в main.py через middleware
 
 
 @router.post(
@@ -38,7 +36,7 @@ router = APIRouter(
 async def execute_query(
     request: QueryRequest,
     token: str = Depends(verify_token),
-    db: FirebirdConnectionPool = Depends(get_db_pool)
+    db: FirebirdDatabase = Depends(get_database)
 ) -> QueryResponse:
     """
     Выполнение SELECT запроса к БД.

@@ -10,12 +10,8 @@ from datetime import datetime
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from slowapi import Limiter, _rate_limit_exceeded_handler
-from slowapi.util import get_remote_address
-from slowapi.errors import RateLimitExceeded
-
 from app.config import settings
-from app.database import initialize_db_pool
+from app.database import initialize_database
 from app.routers import query, health, info
 
 # ==================== LOGGING ====================
@@ -27,10 +23,6 @@ logging.basicConfig(
 )
 
 logger = logging.getLogger(__name__)
-
-# ==================== RATE LIMITER ====================
-
-limiter = Limiter(key_func=get_remote_address)
 
 # ==================== LIFESPAN ====================
 
@@ -48,17 +40,18 @@ async def lifespan(app: FastAPI):
     
     # Инициализация БД
     try:
-        db_pool = initialize_db_pool()
+        db = initialize_database()
         logger.info(f"Database: {settings.db_dsn}")
+        logger.info(f"Cache TTL: {settings.cache_ttl}s")
         
         # Тест подключения
-        if db_pool.test_connection():
+        if db.test_connection():
             logger.info("Database connection test: SUCCESS ✓")
         else:
             logger.warning("Database connection test: FAILED ✗")
             logger.warning("API will start but database operations may fail")
     except Exception as e:
-        logger.error(f"Failed to initialize database pool: {e}")
+        logger.error(f"Failed to initialize database: {e}")
         logger.warning("API will start but database operations will fail")
     
     logger.info(f"API server starting on port {settings.port}")
@@ -137,10 +130,6 @@ app.add_middleware(
     allow_methods=["GET", "POST"],
     allow_headers=["*"],
 )
-
-# Rate Limiter
-app.state.limiter = limiter
-app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 # Request logging middleware
 @app.middleware("http")

@@ -10,7 +10,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, Path
 import fdb
 
 from app.auth import verify_token
-from app.database import get_db_pool, FirebirdConnectionPool
+from app.database import get_database, FirebirdDatabase
 from app.models import TablesResponse, SchemaResponse, ColumnInfo, ErrorResponse
 
 logger = logging.getLogger(__name__)
@@ -33,7 +33,7 @@ router = APIRouter(
 )
 async def get_tables(
     token: str = Depends(verify_token),
-    db: FirebirdConnectionPool = Depends(get_db_pool)
+    db: FirebirdDatabase = Depends(get_database)
 ) -> TablesResponse:
     """
     Получить список таблиц в БД.
@@ -85,7 +85,7 @@ async def get_tables(
 async def get_table_schema(
     table_name: str = Path(..., description="Имя таблицы"),
     token: str = Depends(verify_token),
-    db: FirebirdConnectionPool = Depends(get_db_pool)
+    db: FirebirdDatabase = Depends(get_database)
 ) -> SchemaResponse:
     """
     Получить схему таблицы.
