@@ -34,7 +34,28 @@ Proxy API позволяет выполнять **READ-ONLY** запросы к 
 
 ## 🚀 Быстрый старт
 
-### Установка
+### ⭐ Установка на Windows Server (рекомендуется)
+
+**Если у вас Windows Server с Firebird БД:**
+
+📖 **Полная инструкция:** [WINDOWS_SERVER_INSTALLATION.md](WINDOWS_SERVER_INSTALLATION.md)  
+📋 **Быстрый чеклист:** [server-setup/QUICK_START_CHECKLIST.md](server-setup/QUICK_START_CHECKLIST.md)  
+
+**Автоматическая установка:**
+```powershell
+# От администратора
+cd path\to\firebird-db-proxy
+.\server-setup\install.ps1
+```
+
+**Преимущества:**
+- ✅ Бесплатно
+- ✅ Максимальная скорость (localhost подключение)
+- ✅ Доступен из интернета: `http://85.114.224.45:8000`
+
+---
+
+### Локальная установка (для разработки)
 
 ```bash
 # Клонировать репозиторий
@@ -291,11 +312,20 @@ docker run -p 8000:8000 \
 
 ## 📚 Документация
 
-- [API Documentation](docs/API.md) - Полное описание API endpoints
-- [Deployment Guide](docs/DEPLOYMENT.md) - Инструкции по деплою
-- [Security Guide](docs/SECURITY.md) - Best practices безопасности
-- [Swagger UI](http://localhost:8000/docs) - Интерактивная документация
-- [ReDoc](http://localhost:8000/redoc) - Альтернативная документация
+### Для установки:
+- 🪟 **[Windows Server Installation](WINDOWS_SERVER_INSTALLATION.md)** - Установка на Windows Server (рекомендуется!)
+- 📋 **[Quick Start Checklist](server-setup/QUICK_START_CHECKLIST.md)** - Быстрый чеклист для админа
+- 🎯 **[Deployment Decision Guide](server-setup/DEPLOYMENT_DECISION.md)** - Помощь в выборе метода
+- 🌐 **[Network Explanation](docs/NETWORK_EXPLANATION.md)** - Как работает доступ из интернета
+
+### Для использования:
+- 📡 **[API Documentation](docs/API.md)** - Полное описание API endpoints
+- 🚀 **[Deployment Guide](docs/DEPLOYMENT.md)** - Инструкции по деплою (облако, VPS)
+- 🔒 **[Security Guide](docs/SECURITY.md)** - Best practices безопасности
+
+### Интерактивная документация:
+- 📖 [Swagger UI](http://localhost:8000/docs) - Интерактивная документация
+- 📚 [ReDoc](http://localhost:8000/redoc) - Альтернативная документация
 
 ## 🏗️ Архитектура
 

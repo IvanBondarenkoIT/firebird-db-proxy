@@ -18,13 +18,14 @@ from app.routers import query, health, info
 
 logging.basicConfig(
     level=getattr(logging, settings.log_level.upper()),
-    format='[%(asctime)s] [%(levelname)s] [%(name)s:%(lineno)d] %(message)s',
-    datefmt='%Y-%m-%d %H:%M:%S'
+    format="[%(asctime)s] [%(levelname)s] [%(name)s:%(lineno)d] %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
 )
 
 logger = logging.getLogger(__name__)
 
 # ==================== LIFESPAN ====================
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -37,13 +38,13 @@ async def lifespan(app: FastAPI):
     logger.info(f"Environment: {settings.app_env}")
     logger.info(f"Log level: {settings.log_level}")
     logger.info("=" * 60)
-    
+
     # Инициализация БД
     try:
         db = initialize_database()
         logger.info(f"Database: {settings.db_dsn}")
         logger.info(f"Cache TTL: {settings.cache_ttl}s")
-        
+
         # Тест подключения
         if db.test_connection():
             logger.info("Database connection test: SUCCESS ✓")
@@ -53,12 +54,12 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.error(f"Failed to initialize database: {e}")
         logger.warning("API will start but database operations will fail")
-    
+
     logger.info(f"API server starting on port {settings.port}")
     logger.info("=" * 60)
-    
+
     yield
-    
+
     # Shutdown
     logger.info("=" * 60)
     logger.info("Shutting down gracefully...")
@@ -117,7 +118,7 @@ app = FastAPI(
     version=settings.app_version,
     lifespan=lifespan,
     docs_url="/docs",
-    redoc_url="/redoc"
+    redoc_url="/redoc",
 )
 
 # ==================== MIDDLEWARE ====================
@@ -131,45 +132,43 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
 # Request logging middleware
 @app.middleware("http")
 async def log_requests(request: Request, call_next):
     """Логирование всех входящих запросов"""
     start_time = datetime.now()
-    
+
     # Получить IP клиента
     client_ip = request.client.host if request.client else "unknown"
-    
+
     # Получить токен если есть (только первые 10 символов)
     auth_header = request.headers.get("Authorization", "")
     token_preview = ""
     if auth_header.startswith("Bearer "):
         token = auth_header[7:]
         token_preview = f" | Token: {token[:10]}..." if token else ""
-    
-    logger.info(
-        f"→ {request.method} {request.url.path} | IP: {client_ip}{token_preview}"
-    )
-    
+
+    logger.info(f"→ {request.method} {request.url.path} | IP: {client_ip}{token_preview}")
+
     # Выполнить запрос
     try:
         response = await call_next(request)
-        
+
         # Вычислить время выполнения
         elapsed = (datetime.now() - start_time).total_seconds()
-        
+
         logger.info(
             f"← {request.method} {request.url.path} | "
             f"Status: {response.status_code} | Time: {elapsed:.3f}s"
         )
-        
+
         return response
-        
+
     except Exception as e:
         elapsed = (datetime.now() - start_time).total_seconds()
         logger.error(
-            f"✗ {request.method} {request.url.path} | "
-            f"Error: {str(e)} | Time: {elapsed:.3f}s"
+            f"✗ {request.method} {request.url.path} | " f"Error: {str(e)} | Time: {elapsed:.3f}s"
         )
         raise
 
@@ -187,6 +186,7 @@ app.include_router(info.router)
 
 # ==================== ERROR HANDLERS ====================
 
+
 @app.exception_handler(500)
 async def internal_error_handler(request: Request, exc: Exception):
     """Обработчик внутренних ошибок"""
@@ -196,8 +196,8 @@ async def internal_error_handler(request: Request, exc: Exception):
         content={
             "success": False,
             "error": "Internal server error",
-            "timestamp": datetime.now().isoformat()
-        }
+            "timestamp": datetime.now().isoformat(),
+        },
     )
 
 
@@ -205,12 +205,11 @@ async def internal_error_handler(request: Request, exc: Exception):
 
 if __name__ == "__main__":
     import uvicorn
-    
+
     uvicorn.run(
         "app.main:app",
         host="0.0.0.0",
         port=settings.port,
         reload=settings.app_env == "development",
-        log_level=settings.log_level.lower()
+        log_level=settings.log_level.lower(),
     )
-

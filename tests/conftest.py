@@ -35,4 +35,3 @@ def auth_headers():
 def invalid_auth_headers():
     """Headers с невалидным токеном"""
     return {"Authorization": "Bearer invalid-token"}
-
