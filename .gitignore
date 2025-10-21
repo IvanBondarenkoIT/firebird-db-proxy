@@ -196,3 +196,9 @@ credentials/
 # Railway
 .railway/
 
+# Fly.io
+flyctl.exe
+flyctl.zip
+wintun.dll
+fly.toml
+
