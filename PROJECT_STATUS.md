@@ -308,20 +308,20 @@ feat: complete Windows Server deployment preparation
 ### API Токены (сохранить в безопасном месте!)
 
 ```
-Token 1: 943f0d9658f74776a0e2a6f0fea444254fe1f79d2bd25b0b91b1d3485795bd8f
-Token 2: 56d8f4d3690ef477802dd438bd0a241f49172848c68fe51ab469706d33bfe734
+Token 1: [СГЕНЕРИРОВАТЬ_ЧЕРЕЗ_scripts/generate_token.py]
+Token 2: [СГЕНЕРИРОВАТЬ_ЧЕРЕЗ_scripts/generate_token.py]
 ```
 
 **Использование:**
 ```http
-Authorization: Bearer 943f0d9658f74776a0e2a6f0fea444254fe1f79d2bd25b0b91b1d3485795bd8f
+Authorization: Bearer [ВАШ_ТОКЕН]
 ```
 
 ### Пароль READ-ONLY пользователя БД:
 
 ```
 Пользователь: api_readonly
-Пароль: Api#ReadOnly#2025!Secure
+Пароль: [СГЕНЕРИРОВАТЬ_БЕЗОПАСНЫЙ_ПАРОЛЬ]
 ```
 
 **Изменить в:** `server-setup/create_readonly_user.sql` (строка 13)

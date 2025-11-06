@@ -726,7 +726,7 @@ Get-Content "C:\FirebirdAPI\logs\api-output.log" -Tail 20
 ### Тест с токеном:
 
 ```powershell
-$token = "943f0d9658f74776a0e2a6f0fea444254fe1f79d2bd25b0b91b1d3485795bd8f"
+$token = "ВАШ_ТОКЕН_ЗДЕСЬ"
 $headers = @{
     "Authorization" = "Bearer $token"
     "Content-Type" = "application/json"

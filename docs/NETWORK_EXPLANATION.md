@@ -142,7 +142,7 @@ Bearer Token → Любые IP → API → Localhost → БД
 
 **1. Bearer Token (как пароль)**
 ```http
-Authorization: Bearer 943f0d9658f74776a0e2a6f0fea444254fe1f79d2bd25b0b91b1d3485795bd8f
+Authorization: Bearer [ВАШ_ТОКЕН]
 ```
 - Токен **64 символа** - взломать невозможно
 - Без правильного токена - доступ **ЗАПРЕЩЕН**
@@ -283,7 +283,7 @@ import requests
 
 # ИЗ ЛЮБОГО ГОРОДА!
 API_URL = "http://85.114.224.45:8000"
-TOKEN = "943f0d9658f74776a0e2a6f0fea444254fe1f79d2bd25b0b91b1d3485795bd8f"
+TOKEN = "ВАШ_ТОКЕН_ЗДЕСЬ"
 
 headers = {"Authorization": f"Bearer {TOKEN}"}
 
