@@ -523,64 +523,125 @@ Invoke-WebRequest -Uri "https://nssm.cc/release/nssm-2.24.zip" `
 # Распаковать
 Expand-Archive -Path "$env:TEMP\nssm.zip" -DestinationPath "$env:TEMP\nssm" -Force
 
-# Скопировать нужную версию
-copy "$env:TEMP\nssm\nssm-2.24\win64\nssm.exe" "C:\FirebirdAPI\"
+# Скопировать нужную версию в папку проекта
+# ВАЖНО: Замените путь на ваш реальный путь!
+$projectPath = "G:\FirebirdAPI\firebird-db-proxy"  # ИЗМЕНИТЕ НА ВАШ ПУТЬ!
+copy "$env:TEMP\nssm\nssm-2.24\win64\nssm.exe" "$projectPath\nssm.exe"
 
-# Проверить
-C:\FirebirdAPI\nssm.exe version
+# Проверить (используйте путь к вашему проекту)
+cd $projectPath
+.\nssm.exe version
 ```
 
 ### Шаг 2: Создать Windows Service
 
 ```powershell
+# ВАЖНО: Замените путь на ваш реальный путь!
+$projectPath = "G:\FirebirdAPI\firebird-db-proxy"  # ИЗМЕНИТЕ НА ВАШ ПУТЬ!
+
 # Перейти в папку приложения
-cd C:\FirebirdAPI\firebird-db-proxy
+cd $projectPath
 
 # Установить сервис
-C:\FirebirdAPI\nssm.exe install FirebirdAPI `
-  "C:\FirebirdAPI\firebird-db-proxy\venv\Scripts\python.exe" `
+.\nssm.exe install FirebirdAPI `
+  "$projectPath\venv\Scripts\python.exe" `
   "-m app.main"
 
 # Настроить параметры
-C:\FirebirdAPI\nssm.exe set FirebirdAPI AppDirectory "C:\FirebirdAPI\firebird-db-proxy"
-C:\FirebirdAPI\nssm.exe set FirebirdAPI DisplayName "Firebird Database Proxy API"
-C:\FirebirdAPI\nssm.exe set FirebirdAPI Description "REST API для доступа к Firebird БД"
-C:\FirebirdAPI\nssm.exe set FirebirdAPI Start SERVICE_AUTO_START
+.\nssm.exe set FirebirdAPI AppDirectory $projectPath
+.\nssm.exe set FirebirdAPI DisplayName "Firebird Database Proxy API"
+.\nssm.exe set FirebirdAPI Description "REST API для доступа к Firebird БД"
+.\nssm.exe set FirebirdAPI Start SERVICE_AUTO_START
 
 # Настроить логирование
-C:\FirebirdAPI\nssm.exe set FirebirdAPI AppStdout "C:\FirebirdAPI\logs\api-output.log"
-C:\FirebirdAPI\nssm.exe set FirebirdAPI AppStderr "C:\FirebirdAPI\logs\api-error.log"
+$logsPath = "$projectPath\logs"
+.\nssm.exe set FirebirdAPI AppStdout "$logsPath\api-output.log"
+.\nssm.exe set FirebirdAPI AppStderr "$logsPath\api-error.log"
+
+# ВАЖНО: Установить переменные окружения для Python
+.\nssm.exe set FirebirdAPI AppEnvironmentExtra "PYTHONPATH=$projectPath" "PYTHONUNBUFFERED=1"
+
+# ВАЖНО: Настроить запуск от имени LocalSystem (системный аккаунт)
+.\nssm.exe set FirebirdAPI ObjectName LocalSystem
 
 # Создать папку для логов
-New-Item -ItemType Directory -Path "C:\FirebirdAPI\logs" -Force
+New-Item -ItemType Directory -Path $logsPath -Force
+
+# ВАЖНО: Установить права на папку для системного аккаунта
+icacls $projectPath /grant "SYSTEM:(OI)(CI)F" /T | Out-Null
 ```
 
-### Шаг 3: Запустить сервис
+### Шаг 3: Диагностика перед запуском
+
+```powershell
+# Перейти в папку проекта
+$projectPath = "G:\FirebirdAPI\firebird-db-proxy"  # ИЗМЕНИТЕ НА ВАШ ПУТЬ!
+cd $projectPath
+
+# Проверить что все файлы на месте
+Test-Path "$projectPath\venv\Scripts\python.exe"
+Test-Path "$projectPath\.env"
+Test-Path "$projectPath\app\main.py"
+
+# Проверить настройки сервиса
+.\nssm.exe get FirebirdAPI Application
+.\nssm.exe get FirebirdAPI AppDirectory
+.\nssm.exe get FirebirdAPI AppParameters
+
+# Проверить что Python может запустить приложение вручную
+.\venv\Scripts\python.exe -m app.main
+# Нажмите CTRL+C после проверки что оно запустилось
+```
+
+### Шаг 4: Запустить сервис
 
 ```powershell
 # Запустить
 Start-Service FirebirdAPI
 
+# Подождать 3 секунды
+Start-Sleep -Seconds 3
+
 # Проверить статус
 Get-Service FirebirdAPI
 
-# Должно показать:
-# Status: Running
-# StartType: Automatic
+# Проверить логи ошибок (если сервис не запустился)
+Get-Content "$projectPath\logs\api-error.log" -Tail 50 -ErrorAction SilentlyContinue
+Get-Content "$projectPath\logs\api-output.log" -Tail 50 -ErrorAction SilentlyContinue
 
-# Проверить что API работает
-Start-Sleep -Seconds 5
-Invoke-WebRequest -Uri "http://localhost:8000/api/health" -UseBasicParsing
+# Если сервис не запустился, проверить детали
+.\nssm.exe status FirebirdAPI
 ```
 
-**Если статус Running и health check работает - SUCCESS!** ✅
+**Если статус Running - переходим к проверке API!** ✅
 
-### Шаг 4: Настроить автоматический перезапуск при сбоях
+**Если сервис не запустился:**
+- Проверьте логи ошибок выше
+- Убедитесь что .env файл существует и заполнен
+- Убедитесь что Python может запустить приложение вручную (Шаг 3)
+
+### Шаг 5: Проверить что API работает
+
+```powershell
+# Подождать еще немного
+Start-Sleep -Seconds 5
+
+# Проверить health endpoint
+Invoke-WebRequest -Uri "http://localhost:8000/api/health" -UseBasicParsing
+
+# Должно показать: StatusCode : 200
+```
+
+**Если health check работает - SUCCESS!** ✅
+
+### Шаг 6: Настроить автоматический перезапуск при сбоях
 
 ```powershell
 # Перезапускать сервис если упадет
-C:\FirebirdAPI\nssm.exe set FirebirdAPI AppExit Default Restart
-C:\FirebirdAPI\nssm.exe set FirebirdAPI AppRestartDelay 5000
+$projectPath = "G:\FirebirdAPI\firebird-db-proxy"  # ИЗМЕНИТЕ НА ВАШ ПУТЬ!
+cd $projectPath
+.\nssm.exe set FirebirdAPI AppExit Default Restart
+.\nssm.exe set FirebirdAPI AppRestartDelay 5000
 
 # Перезапустить сервис для применения настроек
 Restart-Service FirebirdAPI
