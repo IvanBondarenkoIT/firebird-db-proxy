@@ -407,9 +407,17 @@ API_TOKENS=a1b2c3d4e5f6...64символа,x7y8z9w1v2u3...64символа
 ### Шаг 4: Тест подключения к БД
 
 ```powershell
+# ВАЖНО: Активировать venv если не активировано!
+.\venv\Scripts\activate
+
 # Проверить что API может подключиться к Firebird
 python scripts/test_connection.py
 ```
+
+**⚠️ Если видите ошибку `ModuleNotFoundError: No module named 'pydantic_settings'`:**
+- Убедитесь что venv активирован (должно быть `(venv)` в начале строки)
+- Если не активирован, выполните: `.\venv\Scripts\activate`
+- Если зависимости не установлены, выполните: `pip install -r requirements.txt`
 
 **Ожидаемый результат:**
 ```
